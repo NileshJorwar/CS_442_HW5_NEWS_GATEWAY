@@ -8,11 +8,10 @@
     android:background="@mipmap/news_background"
     tools:context=".MainActivity">
 
-    <android.support.constraint.ConstraintLayout
+    <android.support.v4.view.ViewPager
+        android:id="@+id/container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-    </android.support.constraint.ConstraintLayout>
+        android:layout_height="match_parent"/>
 
     <ListView
         android:id="@+id/drawer_list"

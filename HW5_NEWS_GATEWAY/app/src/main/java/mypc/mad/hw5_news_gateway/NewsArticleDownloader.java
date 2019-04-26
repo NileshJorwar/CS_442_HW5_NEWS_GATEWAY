@@ -14,34 +14,34 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 
-public class NewsSourceDownloader extends AsyncTask<String, Integer, String> {
-    private static final String TAG = "NewsSourceDownloader";
-    private MainActivity mainActivity;
+public class NewsArticleDownloader extends AsyncTask<String, Integer, String> {
+    private static final String TAG = "NewsArticleDownloader";
+    private NewsBean newsBean;
+    private NewsService newsService;
+    private static final String dataURL = "https://newsapi.org/v2/everything?sources=";
+    private static final String dataURL2 = "&language=en&pageSize=100&apiKey=3aeab6df76cb4d9e9f7baa24357d0a93";
 
-    private static final String dataURL = "https://newsapi.org/v2/sources?language=en&country=us&category=&apiKey=3aeab6df76cb4d9e9f7baa24357d0a93";
 
-    NewsSourceDownloader(MainActivity ma) {
-        mainActivity = ma;
+    NewsArticleDownloader(NewsService newsService, NewsBean newsBean) {
+        this.newsService = newsService;
+        this.newsBean = newsBean;
     }
-
 
     @Override
     protected void onPostExecute(String s) {
 
-        ArrayList<NewsBean> newsSrcList = parseJSON(s);
-
-        if (newsSrcList != null) {
-            Log.d(TAG, "onPostExecute: " + newsSrcList.size());
-            mainActivity.updateNewsData(newsSrcList);
+        ArrayList<NewsArticleBean> newsStoryList = parseJSON(s);
+        if (newsStoryList != null) {
+            Log.d(TAG, "onPostExecute: " + newsStoryList.size());
+            newsService.setArticles(newsStoryList);
         }
     }
 
 
     @Override
     protected String doInBackground(String... params) {
-
-
-        Uri dataUri = Uri.parse(dataURL);
+        String formedUrl = dataURL + newsBean.getId().trim() + dataURL2;
+        Uri dataUri = Uri.parse(formedUrl);
         String urlToUse = dataUri.toString();
 
         StringBuilder sb = new StringBuilder();
@@ -68,34 +68,33 @@ public class NewsSourceDownloader extends AsyncTask<String, Integer, String> {
     }
 
 
-    private ArrayList<NewsBean> parseJSON(String s) {
+    private ArrayList<NewsArticleBean> parseJSON(String s) {
         Log.d(TAG, "parseJSON: ");
-        ArrayList<NewsBean> newsSrcList = new ArrayList<>();
+        ArrayList<NewsArticleBean> newsStoryList = new ArrayList<>();
         try {
             JSONObject jNewsSrc = new JSONObject(s);
             String status = jNewsSrc.getString("status");
             if (status.trim().equalsIgnoreCase("ok")) {
-                String sources = jNewsSrc.getString("sources");
+                String sources = jNewsSrc.getString("articles");
                 if (sources != null) {
                     JSONArray jObjMain = new JSONArray(sources);
                     for (int i = 0; i < jObjMain.length(); i++) {
                         JSONObject jSource = (JSONObject) jObjMain.get(i);
-                        String id = jSource.getString("id");
-                        String name = jSource.getString("name");
+                        String author = jSource.getString("author");
+                        String title = jSource.getString("title");
+                        String description = jSource.getString("description");
                         String url = jSource.getString("url");
-                        String category = jSource.getString("category");
-                        newsSrcList.add(new NewsBean(id, name, url, category));
+                        String urlToImage = jSource.getString("urlToImage");
+                        String publishedAt = jSource.getString("publishedAt");
+                        newsStoryList.add(new NewsArticleBean(author, title, description, url, urlToImage, publishedAt));
                     }
                 }
             }
 
-            return newsSrcList;
+            return newsStoryList;
         } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
-
-
 }
-

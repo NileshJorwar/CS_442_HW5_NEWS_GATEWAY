@@ -1,6 +1,9 @@
 package mypc.mad.hw5_news_gateway;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.support.v4.content.ContextCompat;
@@ -17,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -28,15 +32,29 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private Menu opt_menu;
     private ArrayList<NewsBean> newsSrcList = new ArrayList<>();
+    private ArrayList<NewsArticleBean> articleListFromNS = new ArrayList<>();
     private HashMap<String, ArrayList<NewsBean>> newsData = new HashMap<>();
+    public static final String ACTION_MSG_TO_SVC = "BROADCAST TO NEWS SERVICE";
+    public static final String ACTION_NEWS_STORY = "BROADCAST FROM NEWS SERVICE";
+    static final String MSG_DATA = "MSG_DATA";
     private DrawerLayout mDrawerLayout;
     private ListView mDrawerList;
     private ActionBarDrawerToggle mDrawerToggle;
+    private NewsReceiver newsReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        //Start service for getting News Sources
+        Intent intent = new Intent(this, NewsService.class);
+        startService(intent);
+
+        newsReceiver = new NewsReceiver();
+        IntentFilter filterNews = new IntentFilter(ACTION_NEWS_STORY);
+        registerReceiver(newsReceiver, filterNews);
+
         mDrawerLayout = findViewById(R.id.drawer_layout);
         mDrawerList = findViewById(R.id.drawer_list);
 
@@ -46,6 +64,13 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                         NewsBean news = newsSrcList.get(position);
+                        //Creating Intent for NewsService
+                        Intent broadCastIntent = new Intent();
+                        broadCastIntent.setAction(ACTION_MSG_TO_SVC);
+                        broadCastIntent.putExtra(MSG_DATA, news);
+                        sendBroadcast(broadCastIntent);
+
+                        // To display News Info on Pager
                         Intent intent = new Intent(MainActivity.this, NewsInfoActivity.class);
                         intent.putExtra(NewsBean.class.getName(), news);
                         startActivity(intent);
@@ -103,7 +128,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         newsSrcList.addAll(listIn);
-        mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
+        mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList)) ;
+        /*mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 View view = super.getView(position, convertView, parent);
@@ -116,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
                 text.setText("" + s);
                 return view;
             }
-        });
+        });*/
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -150,6 +176,7 @@ public class MainActivity extends AppCompatActivity {
         newsSrcList.clear();
         if (newsData != null) {
             newsSrcList.addAll(newsData.get(item.getTitle().toString()));
+
         }
 
         ((ArrayAdapter) mDrawerList.getAdapter()).notifyDataSetChanged();
@@ -164,4 +191,32 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
+    ////////////////////////////////////////////////////////////////////
+    public class NewsReceiver extends BroadcastReceiver {
+        private static final String TAG = "NewsReceiver";
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null || intent.getAction() == null)
+                return;
+            switch (intent.getAction()) {
+                case NewsService.ACTION_NEWS_STORY:
+                    if (intent.hasExtra(NewsService.MSG_FROM_NS)) {
+                        articleListFromNS = (ArrayList<NewsArticleBean>) intent.getSerializableExtra(NewsService.MSG_FROM_NS);
+                    }
+                    Log.d(TAG, "onReceive: " + articleListFromNS.size());
+                    break;
+                default:
+                    Log.d(TAG, "onReceive: Unexpected broadcast: " + intent.getAction());
+            }
+        }
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        unregisterReceiver(newsReceiver);
+        Intent intent = new Intent(MainActivity.this, NewsArticleBean.class);
+        stopService(intent);
+        super.onDestroy();
+    }
 }
