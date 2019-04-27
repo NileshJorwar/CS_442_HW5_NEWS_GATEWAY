@@ -73,6 +73,8 @@ public class NewsArticleDownloader extends AsyncTask<String, Integer, String> {
         ArrayList<NewsArticleBean> newsStoryList = new ArrayList<>();
         try {
             JSONObject jNewsSrc = new JSONObject(s);
+            String source = null;
+            String srcName = null;
             String status = jNewsSrc.getString("status");
             if (status.trim().equalsIgnoreCase("ok")) {
                 String sources = jNewsSrc.getString("articles");
@@ -80,17 +82,21 @@ public class NewsArticleDownloader extends AsyncTask<String, Integer, String> {
                     JSONArray jObjMain = new JSONArray(sources);
                     for (int i = 0; i < jObjMain.length(); i++) {
                         JSONObject jSource = (JSONObject) jObjMain.get(i);
+                        if (source == null) {
+                            source = jSource.getString("source");
+                            JSONObject srcJson = new JSONObject(source);
+                            srcName = srcJson.getString("name");
+                        }
                         String author = jSource.getString("author");
                         String title = jSource.getString("title");
                         String description = jSource.getString("description");
                         String url = jSource.getString("url");
                         String urlToImage = jSource.getString("urlToImage");
                         String publishedAt = jSource.getString("publishedAt");
-                        newsStoryList.add(new NewsArticleBean(author, title, description, url, urlToImage, publishedAt));
+                        newsStoryList.add(new NewsArticleBean(srcName, author, title, description, url, urlToImage, publishedAt));
                     }
                 }
             }
-
             return newsStoryList;
         } catch (Exception e) {
             e.printStackTrace();

@@ -6,7 +6,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.graphics.Color;
+import android.support.annotation.NonNull;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.ViewPager;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
@@ -27,6 +32,7 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -41,6 +47,9 @@ public class MainActivity extends AppCompatActivity {
     private ListView mDrawerList;
     private ActionBarDrawerToggle mDrawerToggle;
     private NewsReceiver newsReceiver;
+    private MyPageAdapter pageAdapter;
+    private List<Fragment> fragments;
+    private ViewPager pager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,17 +72,13 @@ public class MainActivity extends AppCompatActivity {
                 new ListView.OnItemClickListener() {
                     @Override
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                        pager.setBackground(null);
                         NewsBean news = newsSrcList.get(position);
                         //Creating Intent for NewsService
                         Intent broadCastIntent = new Intent();
                         broadCastIntent.setAction(ACTION_MSG_TO_SVC);
                         broadCastIntent.putExtra(MSG_DATA, news);
                         sendBroadcast(broadCastIntent);
-
-                        // To display News Info on Pager
-                        Intent intent = new Intent(MainActivity.this, NewsInfoActivity.class);
-                        intent.putExtra(NewsBean.class.getName(), news);
-                        startActivity(intent);
                         mDrawerLayout.closeDrawer(mDrawerList);
                     }
                 }
@@ -87,11 +92,22 @@ public class MainActivity extends AppCompatActivity {
                 R.string.drawer_close  /* "close drawer" description for accessibility */
         );
 
+
+        //View Pager
+        fragments = new ArrayList<>();
+        pageAdapter = new MyPageAdapter(getSupportFragmentManager());
+        pager = findViewById(R.id.container);
+        pager.setAdapter(pageAdapter);
+        // Add a background image to the view pager
+        //pager.setBackground(getResources().getDrawable(R.mipmap.news_background, this.getTheme()));
+
         // Load the data
         if (newsData.isEmpty())
             new NewsSourceDownloader(this).execute();
 
+
     }
+
 
     public void updateNewsData(ArrayList<NewsBean> listIn) {
         Log.d(TAG, "updateNewsData: ");
@@ -128,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         newsSrcList.addAll(listIn);
-        mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList)) ;
+        mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList));
         /*mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
@@ -194,6 +210,7 @@ public class MainActivity extends AppCompatActivity {
     ////////////////////////////////////////////////////////////////////
     public class NewsReceiver extends BroadcastReceiver {
         private static final String TAG = "NewsReceiver";
+
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent == null || intent.getAction() == null)
@@ -202,6 +219,7 @@ public class MainActivity extends AppCompatActivity {
                 case NewsService.ACTION_NEWS_STORY:
                     if (intent.hasExtra(NewsService.MSG_FROM_NS)) {
                         articleListFromNS = (ArrayList<NewsArticleBean>) intent.getSerializableExtra(NewsService.MSG_FROM_NS);
+                        displayPager();
                     }
                     Log.d(TAG, "onReceive: " + articleListFromNS.size());
                     break;
@@ -210,6 +228,71 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+    }
+
+    public void displayPager() {
+
+        Log.d(TAG, "displayPager: ");
+        for (int i = 0; i < articleListFromNS.size(); i++) {
+            if (articleListFromNS.get(i).getSrcName() != null) {
+                setTitle(articleListFromNS.get(i).getSrcName());
+                break;
+            }
+        }
+
+        // Tell page adapter that all pages have changed
+        for (int i = 0; i < pageAdapter.getCount(); i++)
+            pageAdapter.notifyChangeInPosition(i);
+
+        // Clear the fragments list
+        fragments.clear();
+
+        // Create "n" new fragments where "n" is the menu selection "item" passed in.
+        for (int i = 0; i < articleListFromNS.size(); i++) {
+            fragments.add(NewsFragment.newInstance(articleListFromNS.get(i), i + 1, articleListFromNS.size()));
+        }
+
+        // Tell the page adapter that the list of fragments has changed
+        pageAdapter.notifyDataSetChanged();
+
+        // Set the first fragment to display
+        pager.setCurrentItem(0);
+        //pager.setBackground(null);
+    }
+
+    private class MyPageAdapter extends FragmentPagerAdapter {
+        private static final String TAG = "MyPageAdapter";
+        private long baseId = 0;
+
+        public MyPageAdapter(FragmentManager fm) {
+            super(fm);
+        }
+
+        @Override
+        public int getItemPosition(@NonNull Object object) {
+            return POSITION_NONE;
+        }
+
+        @Override
+        public Fragment getItem(int position) {
+            return fragments.get(position);
+        }
+
+        @Override
+        public int getCount() {
+            return fragments.size();
+        }
+
+        @Override
+        public long getItemId(int position) {
+            // give an ID different from position when position has been changed
+            return baseId + position;
+        }
+
+        public void notifyChangeInPosition(int n) {
+            // shift the ID returned by getItemId outside the range of all previous fragments
+            baseId += getCount() + n;
+        }
     }
 
     @Override
