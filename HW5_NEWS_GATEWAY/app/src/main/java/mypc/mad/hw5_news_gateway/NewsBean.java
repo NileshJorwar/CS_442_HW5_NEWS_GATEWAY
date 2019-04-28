@@ -9,14 +9,47 @@ public class NewsBean implements Serializable {
     private String name;
     private String category;
     private String url;
+    private String colorCodes[] = {"#000000", "#f9d418", "#838fea", "#158c13", "#f9042d", "#6fbdf2", "#242b60", "#f435ce"};
 
-    public NewsBean(String id, String name, String url,String category) {
+    public NewsBean(String id, String name, String url, String category) {
         this.id = id;
         this.name = name;
-        this.url=url;
+        this.url = url;
         this.category = category;
     }
 
+    public String getColor() {
+        String color;
+        if (category.equalsIgnoreCase("all")) {
+            color = colorCodes[0];
+        }
+        else if (category.equalsIgnoreCase("business")) {
+            color = colorCodes[1];
+        }
+        else if (category.equalsIgnoreCase("entertainment")) {
+            color = colorCodes[2];
+        }
+        else if (category.equalsIgnoreCase("general")) {
+            color = colorCodes[3];
+        }
+        else if (category.equalsIgnoreCase("health")) {
+            color = colorCodes[4];
+        }
+        else if (category.equalsIgnoreCase("science")) {
+            color = colorCodes[5];
+        }
+        else if (category.equalsIgnoreCase("sports")) {
+            color = colorCodes[6];
+        }
+        else if (category.equalsIgnoreCase("technology")) {
+            color = colorCodes[7];
+        }
+        else
+        {
+            color="#FFFFFF";
+        }
+        return color;
+    }
 
     public String getId() {
         return id;
@@ -49,6 +82,7 @@ public class NewsBean implements Serializable {
     public void setCategory(String category) {
         this.category = category;
     }
+
     @NonNull
     public String toString() {
         return name;

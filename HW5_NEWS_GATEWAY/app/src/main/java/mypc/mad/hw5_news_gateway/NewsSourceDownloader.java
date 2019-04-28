@@ -18,12 +18,14 @@ public class NewsSourceDownloader extends AsyncTask<String, Integer, String> {
     private static final String TAG = "NewsSourceDownloader";
     private MainActivity mainActivity;
 
-    private static final String dataURL = "https://newsapi.org/v2/sources?language=en&country=us&category=&apiKey=3aeab6df76cb4d9e9f7baa24357d0a93";
+    private static final String dataURL = "https://newsapi.org/v2/sources?language=en&country=us&category=";
+    private static final String dataURL2 = "&apiKey=3aeab6df76cb4d9e9f7baa24357d0a93";
+    private String category;
 
-    NewsSourceDownloader(MainActivity ma) {
+    NewsSourceDownloader(MainActivity ma, String category) {
         mainActivity = ma;
+        this.category = category;
     }
-
 
     @Override
     protected void onPostExecute(String s) {
@@ -32,16 +34,16 @@ public class NewsSourceDownloader extends AsyncTask<String, Integer, String> {
 
         if (newsSrcList != null) {
             Log.d(TAG, "onPostExecute: " + newsSrcList.size());
-            mainActivity.updateNewsData(newsSrcList);
+            mainActivity.setSources(newsSrcList);
         }
     }
 
 
     @Override
     protected String doInBackground(String... params) {
-
-
-        Uri dataUri = Uri.parse(dataURL);
+        String finalUrl = dataURL + category + dataURL2;
+        Log.d(TAG, "doInBackground: final URL" + finalUrl);
+        Uri dataUri = Uri.parse(finalUrl);
         String urlToUse = dataUri.toString();
 
         StringBuilder sb = new StringBuilder();
@@ -88,7 +90,6 @@ public class NewsSourceDownloader extends AsyncTask<String, Integer, String> {
                     }
                 }
             }
-
             return newsSrcList;
         } catch (Exception e) {
             e.printStackTrace();

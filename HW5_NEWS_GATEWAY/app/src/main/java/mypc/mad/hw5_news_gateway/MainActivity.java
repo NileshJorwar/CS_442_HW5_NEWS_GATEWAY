@@ -16,9 +16,11 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Layout;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -50,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private MyPageAdapter pageAdapter;
     private List<Fragment> fragments;
     private ViewPager pager;
+    private String colorCodes[] = {"#000000", "#f9d418", "#838fea", "#158c13", "#f9042d", "#6fbdf2", "#242b60", "#f435ce"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,8 +64,6 @@ public class MainActivity extends AppCompatActivity {
         startService(intent);
 
         newsReceiver = new NewsReceiver();
-        IntentFilter filterNews = new IntentFilter(ACTION_NEWS_STORY);
-        registerReceiver(newsReceiver, filterNews);
 
         mDrawerLayout = findViewById(R.id.drawer_layout);
         mDrawerList = findViewById(R.id.drawer_list);
@@ -72,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
                 new ListView.OnItemClickListener() {
                     @Override
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
                         pager.setBackground(null);
                         NewsBean news = newsSrcList.get(position);
                         //Creating Intent for NewsService
@@ -79,6 +81,8 @@ public class MainActivity extends AppCompatActivity {
                         broadCastIntent.setAction(ACTION_MSG_TO_SVC);
                         broadCastIntent.putExtra(MSG_DATA, news);
                         sendBroadcast(broadCastIntent);
+                        displayPager();
+
                         mDrawerLayout.closeDrawer(mDrawerList);
                     }
                 }
@@ -103,48 +107,80 @@ public class MainActivity extends AppCompatActivity {
 
         // Load the data
         if (newsData.isEmpty())
-            new NewsSourceDownloader(this).execute();
+            new NewsSourceDownloader(this, "").execute();
 
 
     }
 
 
-    public void updateNewsData(ArrayList<NewsBean> listIn) {
+    public void setSources(ArrayList<NewsBean> listIn) {
         Log.d(TAG, "updateNewsData: ");
-        for (NewsBean n : listIn) {
-            if (n.getCategory().trim().isEmpty()) {
-                n.setCategory("Unspecified");
+        if (newsData.isEmpty()) {
+            Log.d(TAG, "setSources: inside if");
+            for (NewsBean n : listIn) {
+                if (n.getCategory().trim().isEmpty()) {
+                    n.setCategory("Unspecified");
+                }
+                if (!newsData.containsKey(n.getCategory())) {
+                    newsData.put(n.getCategory(), new ArrayList<NewsBean>());
+                }
+                newsData.get(n.getCategory()).add(n);
             }
-            if (!newsData.containsKey(n.getCategory())) {
-                newsData.put(n.getCategory(), new ArrayList<NewsBean>());
+
+            newsData.put("All", listIn);
+
+            ArrayList<String> tempList = new ArrayList<>(newsData.keySet());
+            Collections.sort(tempList);
+            for (String s : tempList) {
+                opt_menu.add(s);
             }
-            newsData.get(n.getCategory()).add(n);
+
+            /*
+             * Setting Options Menu Item Text Color
+             **/
+
+            Log.d(TAG, "updateNewsData: Size" + opt_menu.size());
+            if (opt_menu.size() != 0) {
+                for (int i = 0; i < opt_menu.size(); i++) {
+                    MenuItem item = opt_menu.getItem(i);
+                    SpannableString s = new SpannableString(item.getTitle());
+                    s.setSpan(new ForegroundColorSpan(Color.parseColor(colorCodes[i])), 0, s.length(), 0);
+                    item.setTitle(s);
+                }
+            }
+
+            newsSrcList.addAll(listIn);
+            mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
+                @Override
+                public View getView(int position, View convertView, ViewGroup parent) {
+                    View view = super.getView(position, convertView, parent);
+                    NewsBean newsBean = newsSrcList.get(position);
+                    TextView text = view.findViewById(R.id.text_view);
+                    text.setText(newsBean.toString());
+                    text.setTextColor(Color.parseColor(newsBean.getColor()));
+                    return view;
+                }
+            });
+
+        } else {
+            Log.d(TAG, "setSources: inside else");
+            newsSrcList.clear();
+            newsSrcList.addAll(listIn);
+            mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
+                @Override
+                public View getView(int position, View convertView, ViewGroup parent) {
+                    View view = super.getView(position, convertView, parent);
+                    NewsBean newsBean = newsSrcList.get(position);
+                    TextView text = view.findViewById(R.id.text_view);
+                    text.setText(newsBean.toString());
+                    text.setTextColor(Color.parseColor(newsBean.getColor()));
+                    return view;
+                }
+            });
+
+            ((ArrayAdapter) mDrawerList.getAdapter()).notifyDataSetChanged();
         }
 
-        newsData.put("All", listIn);
-
-        ArrayList<String> tempList = new ArrayList<>(newsData.keySet());
-        Collections.sort(tempList);
-        for (String s : tempList) {
-            opt_menu.add(s);
-        }
-
-        /*
-         * Setting Options Menu Item Text Color
-         **/
-        String colorCodes[] = {"#000000", "#f9d418", "#838fea", "#158c13", "#f9042d", "#6fbdf2", "#242b60", "#f435ce"};
-        Log.d(TAG, "updateNewsData: Size" + opt_menu.size());
-        if (opt_menu.size() != 0) {
-            for (int i = 0; i < opt_menu.size(); i++) {
-                MenuItem item = opt_menu.getItem(i);
-                SpannableString s = new SpannableString(item.getTitle());
-                s.setSpan(new ForegroundColorSpan(Color.parseColor(colorCodes[i])), 0, s.length(), 0);
-                item.setTitle(s);
-            }
-        }
-
-        newsSrcList.addAll(listIn);
-        mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList));
         /*mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
@@ -179,6 +215,15 @@ public class MainActivity extends AppCompatActivity {
         // Pass any configuration change to the drawer toggls
         mDrawerToggle.onConfigurationChanged(newConfig);
     }
+
+    // You need this to set up the options menu
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.opt_menu, menu);
+        opt_menu = menu;
+        return true;
+    }
+
     // You need the below to open the drawer when the toggle is clicked
     // Same method is called when an options menu item is selected.
 
@@ -187,24 +232,19 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "onOptionsItemSelected: mDrawerToggle " + item.toString());
             return true;
         }
-
         setTitle(item.getTitle().toString());
-        newsSrcList.clear();
-        if (newsData != null) {
-            newsSrcList.addAll(newsData.get(item.getTitle().toString()));
-
+        if (!item.getTitle().toString().trim().equalsIgnoreCase("All")) {
+            Log.d(TAG, "onOptionsItemSelected: inside not all");
+            new NewsSourceDownloader(this, item.getTitle().toString()).execute();
+        } else {
+            if (newsData != null) {
+                Log.d(TAG, "onOptionsItemSelected: inside all");
+                newsSrcList.clear();
+                newsSrcList.addAll(newsData.get(item.getTitle().toString()));
+                ((ArrayAdapter) mDrawerList.getAdapter()).notifyDataSetChanged();
+            }
         }
-
-        ((ArrayAdapter) mDrawerList.getAdapter()).notifyDataSetChanged();
         return super.onOptionsItemSelected(item);
-    }
-
-    // You need this to set up the options menu
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.opt_menu, menu);
-        opt_menu = menu;
-        return true;
     }
 
     ////////////////////////////////////////////////////////////////////
@@ -219,7 +259,6 @@ public class MainActivity extends AppCompatActivity {
                 case NewsService.ACTION_NEWS_STORY:
                     if (intent.hasExtra(NewsService.MSG_FROM_NS)) {
                         articleListFromNS = (ArrayList<NewsArticleBean>) intent.getSerializableExtra(NewsService.MSG_FROM_NS);
-                        displayPager();
                     }
                     Log.d(TAG, "onReceive: " + articleListFromNS.size());
                     break;
@@ -281,6 +320,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public int getCount() {
             return fragments.size();
+
         }
 
         @Override
@@ -296,10 +336,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onStop() {
         unregisterReceiver(newsReceiver);
-        Intent intent = new Intent(MainActivity.this, NewsArticleBean.class);
-        stopService(intent);
-        super.onDestroy();
+        super.onStop();
     }
+
+    @Override
+    public void onResume() {
+        Log.d(TAG, "onResume: ");
+        IntentFilter filterNews = new IntentFilter(ACTION_NEWS_STORY);
+        registerReceiver(newsReceiver, filterNews);
+        super.onResume();
+    }
+
 }

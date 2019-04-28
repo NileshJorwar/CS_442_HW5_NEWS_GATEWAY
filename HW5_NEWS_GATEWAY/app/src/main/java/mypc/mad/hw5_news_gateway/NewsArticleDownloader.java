@@ -12,7 +12,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class NewsArticleDownloader extends AsyncTask<String, Integer, String> {
     private static final String TAG = "NewsArticleDownloader";
@@ -93,7 +96,14 @@ public class NewsArticleDownloader extends AsyncTask<String, Integer, String> {
                         String url = jSource.getString("url");
                         String urlToImage = jSource.getString("urlToImage");
                         String publishedAt = jSource.getString("publishedAt");
-                        newsStoryList.add(new NewsArticleBean(srcName, author, title, description, url, urlToImage, publishedAt));
+                        String publishedDate="";
+                        if (!publishedAt.trim().isEmpty()) {
+                            SimpleDateFormat srcFmt = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
+                            Date srcDate = srcFmt.parse(publishedAt);
+                            SimpleDateFormat targetFormat = new SimpleDateFormat("MMM dd, yyyy HH:mm");
+                            publishedDate = targetFormat.format(srcDate);
+                        }
+                        newsStoryList.add(new NewsArticleBean(srcName, author, title, description, url, urlToImage, publishedDate));
                     }
                 }
             }
