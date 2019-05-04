@@ -51,11 +51,18 @@ public class NewsService extends Service {
 
                 while (running) {
                     try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
+                        if (articleList.isEmpty()) {
+                            Thread.sleep(250);
+                        }
+                        else {
+                            sendBroadcastToMain();
+                            articleList.clear();
+                        }
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    sendBroadcastToMain();
+
+
                 }
                 Log.d(TAG, "run: Ending loop");
             }
@@ -65,25 +72,14 @@ public class NewsService extends Service {
 
     private void sendBroadcastToMain() {
         Log.d(TAG, "sendBroadcastToMain: " + articleList.size());
-        try {
-            if (articleList.isEmpty()) {
-                try {
-                    Thread.sleep(250);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                //Creating Intent for MainActivity
-                Log.d(TAG, "run: Intent");
-                Intent broadCastIntent = new Intent();
-                broadCastIntent.setAction(ACTION_NEWS_STORY);
-                broadCastIntent.putExtra(MSG_FROM_NS, articleList);
-                sendBroadcast(broadCastIntent);
-                //articleList.clear();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+
+        //Creating Intent for MainActivity
+        Log.d(TAG, "run: Intent");
+        Intent broadCastIntent = new Intent();
+        broadCastIntent.setAction(ACTION_NEWS_STORY);
+        broadCastIntent.putExtra(MSG_FROM_NS, articleList);
+        sendBroadcast(broadCastIntent);
+
     }
 
     @Override

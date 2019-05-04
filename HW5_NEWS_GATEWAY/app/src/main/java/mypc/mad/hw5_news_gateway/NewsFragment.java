@@ -66,14 +66,14 @@ public class NewsFragment extends Fragment {
         if (!newsArticleBean.getPublishedAt().equalsIgnoreCase("null")) {
             dateView.setText(newsArticleBean.getPublishedAt());
         } else {
-            dateView.setVisibility(View.INVISIBLE);
+            dateView.setVisibility(View.GONE);
         }
 
         TextView authorView = v.findViewById(R.id.authorView);
         if (!newsArticleBean.getAuthor().equalsIgnoreCase("null")) {
             authorView.setText(newsArticleBean.getAuthor());
         } else {
-            authorView.setVisibility(View.INVISIBLE);
+            authorView.setVisibility(View.GONE);
         }
 
         if (!newsArticleBean.getDescription().equalsIgnoreCase("null")) {
@@ -92,10 +92,10 @@ public class NewsFragment extends Fragment {
         TextView pageNum = v.findViewById(R.id.countView);
         pageNum.setText(String.format(Locale.US, "%d of %d", index, total));
 
+        Picasso picasso = new Picasso.Builder(getContext()).build();
         ImageView imgView = v.findViewById(R.id.imgView);
         if (!newsArticleBean.getUrlToImage().equalsIgnoreCase("null")) {
             try {
-                Picasso picasso = new Picasso.Builder(getContext()).build();
                 picasso.load(newsArticleBean.getUrlToImage().trim())
                         .error(R.mipmap.no_image)
                         .placeholder(R.drawable.placeholder)

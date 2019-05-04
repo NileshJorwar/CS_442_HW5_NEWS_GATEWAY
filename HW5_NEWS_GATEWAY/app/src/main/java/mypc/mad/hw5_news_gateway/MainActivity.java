@@ -31,14 +31,17 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private Menu opt_menu;
+    private boolean flag = false;
     private ArrayList<NewsBean> newsSrcList = new ArrayList<>();
     private ArrayList<NewsArticleBean> articleListFromNS = new ArrayList<>();
     private HashMap<String, ArrayList<NewsBean>> newsData = new HashMap<>();
@@ -49,13 +52,15 @@ public class MainActivity extends AppCompatActivity {
     private ListView mDrawerList;
     private ActionBarDrawerToggle mDrawerToggle;
     private NewsReceiver newsReceiver;
+    private final ArrayList<String> tempCopyList = new ArrayList<>();
     private MyPageAdapter pageAdapter;
     private List<Fragment> fragments;
     private ViewPager pager;
-    private String colorCodes[] = {"#000000", "#f9d418", "#838fea", "#158c13", "#f9042d", "#6fbdf2", "#242b60", "#f435ce"};
+    private String colorCodes[] = {"#000000", "#f9d418", "#838fea", "#158c13", "#f9042d", "#6fbdf2", "#242b60", "#f435ce", "#3d1b1b", "#ef550e", "#3bef0e", "#0eefdc", "#0e55ef", "#ef0e91", "#330101", "#776767"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d(TAG, "onCreate: restoreState" + newsData.size() + " /" + newsSrcList.size() + " / flag " + flag);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -73,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
                 new ListView.OnItemClickListener() {
                     @Override
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-
+                        Log.d(TAG, "onItemClick: ");
                         pager.setBackground(null);
                         NewsBean news = newsSrcList.get(position);
                         //Creating Intent for NewsService
@@ -81,7 +86,6 @@ public class MainActivity extends AppCompatActivity {
                         broadCastIntent.setAction(ACTION_MSG_TO_SVC);
                         broadCastIntent.putExtra(MSG_DATA, news);
                         sendBroadcast(broadCastIntent);
-                        displayPager();
 
                         mDrawerLayout.closeDrawer(mDrawerList);
                     }
@@ -102,104 +106,90 @@ public class MainActivity extends AppCompatActivity {
         pageAdapter = new MyPageAdapter(getSupportFragmentManager());
         pager = findViewById(R.id.container);
         pager.setAdapter(pageAdapter);
-        // Add a background image to the view pager
-        //pager.setBackground(getResources().getDrawable(R.mipmap.news_background, this.getTheme()));
 
-        // Load the data
-        if (newsData.isEmpty())
+
+        if (newsData.isEmpty()) {
             new NewsSourceDownloader(this, "").execute();
+        }
 
 
     }
 
 
     public void setSources(ArrayList<NewsBean> listIn) {
-        Log.d(TAG, "updateNewsData: ");
-        if (newsData.isEmpty()) {
-            Log.d(TAG, "setSources: inside if");
-            for (NewsBean n : listIn) {
-                if (n.getCategory().trim().isEmpty()) {
-                    n.setCategory("Unspecified");
+        Log.d(TAG, "onCreate: restoreState setSources" + newsData.size() + " / " + newsSrcList.size() + " /flag" + flag);
+        if (!flag) {
+            if (newsData.isEmpty()) {
+                for (NewsBean n : listIn) {
+                    if (n.getCategory().trim().isEmpty()) {
+                        n.setCategory("Unspecified");
+                    }
+                    if (!newsData.containsKey(n.getCategory())) {
+                        newsData.put(n.getCategory(), new ArrayList<NewsBean>());
+                    }
+                    newsData.get(n.getCategory()).add(n);
                 }
-                if (!newsData.containsKey(n.getCategory())) {
-                    newsData.put(n.getCategory(), new ArrayList<NewsBean>());
+
+                newsData.put("All", listIn);
+
+                ArrayList<String> tempList = new ArrayList<>(newsData.keySet());
+                Collections.sort(tempList);
+                tempCopyList.addAll(tempList);
+                for (String s : tempList) {
+                    opt_menu.add(s);
                 }
-                newsData.get(n.getCategory()).add(n);
+
+                /*
+                 * Setting Options Menu Item Text Color
+                 **/
+
+                if (opt_menu.size() != 0) {
+                    for (int i = 0; i < opt_menu.size(); i++) {
+                        MenuItem item = opt_menu.getItem(i);
+                        SpannableString s = new SpannableString(item.getTitle());
+                        s.setSpan(new ForegroundColorSpan(Color.parseColor(colorCodes[i])), 0, s.length(), 0);
+                        item.setTitle(s);
+                    }
+                }
+
+                newsSrcList.addAll(listIn);
+                mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        View view = super.getView(position, convertView, parent);
+                        NewsBean newsBean = newsSrcList.get(position);
+                        TextView text = view.findViewById(R.id.text_view);
+                        text.setText(newsBean.toString());
+                        text.setTextColor(Color.parseColor(newsBean.getColor(tempCopyList.indexOf(newsBean.getCategory()))));
+                        return view;
+                    }
+                });
+
+            } else {
+
+                newsSrcList.clear();
+                newsSrcList.addAll(listIn);
+                mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
+                        View view = super.getView(position, convertView, parent);
+                        NewsBean newsBean = newsSrcList.get(position);
+                        TextView text = view.findViewById(R.id.text_view);
+                        text.setText(newsBean.toString());
+                        text.setTextColor(Color.parseColor(newsBean.getColor(tempCopyList.indexOf(newsBean.getCategory()))));
+                        return view;
+                    }
+                });
+
+                ((ArrayAdapter) mDrawerList.getAdapter()).notifyDataSetChanged();
             }
 
-            newsData.put("All", listIn);
-
-            ArrayList<String> tempList = new ArrayList<>(newsData.keySet());
-            Collections.sort(tempList);
-            for (String s : tempList) {
-                opt_menu.add(s);
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+                getSupportActionBar().setHomeButtonEnabled(true);
             }
+        }// flag===false
 
-            /*
-             * Setting Options Menu Item Text Color
-             **/
-
-            Log.d(TAG, "updateNewsData: Size" + opt_menu.size());
-            if (opt_menu.size() != 0) {
-                for (int i = 0; i < opt_menu.size(); i++) {
-                    MenuItem item = opt_menu.getItem(i);
-                    SpannableString s = new SpannableString(item.getTitle());
-                    s.setSpan(new ForegroundColorSpan(Color.parseColor(colorCodes[i])), 0, s.length(), 0);
-                    item.setTitle(s);
-                }
-            }
-
-            newsSrcList.addAll(listIn);
-            mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
-                @Override
-                public View getView(int position, View convertView, ViewGroup parent) {
-                    View view = super.getView(position, convertView, parent);
-                    NewsBean newsBean = newsSrcList.get(position);
-                    TextView text = view.findViewById(R.id.text_view);
-                    text.setText(newsBean.toString());
-                    text.setTextColor(Color.parseColor(newsBean.getColor()));
-                    return view;
-                }
-            });
-
-        } else {
-            Log.d(TAG, "setSources: inside else");
-            newsSrcList.clear();
-            newsSrcList.addAll(listIn);
-            mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
-                @Override
-                public View getView(int position, View convertView, ViewGroup parent) {
-                    View view = super.getView(position, convertView, parent);
-                    NewsBean newsBean = newsSrcList.get(position);
-                    TextView text = view.findViewById(R.id.text_view);
-                    text.setText(newsBean.toString());
-                    text.setTextColor(Color.parseColor(newsBean.getColor()));
-                    return view;
-                }
-            });
-
-            ((ArrayAdapter) mDrawerList.getAdapter()).notifyDataSetChanged();
-        }
-
-        /*mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                View view = super.getView(position, convertView, parent);
-                NewsBean newsBean = newsSrcList.get(position);
-                TextView text = view.findViewById(android.R.id.text1);
-                Log.d(TAG, "getView: " + text);
-                SpannableString s = new SpannableString(newsBean.getName());
-                s.setSpan(new ForegroundColorSpan(Color.RED), 0, s.length(), 0);
-                Log.d(TAG, "getView: ");
-                text.setText("" + s);
-                return view;
-            }
-        });*/
-
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setHomeButtonEnabled(true);
-        }
     }
 
     @Override
@@ -219,8 +209,11 @@ public class MainActivity extends AppCompatActivity {
     // You need this to set up the options menu
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
+        Log.d(TAG, "onCreate: restoreState options");
         getMenuInflater().inflate(R.menu.opt_menu, menu);
+
         opt_menu = menu;
+        opt_menu.clear();
         return true;
     }
 
@@ -228,8 +221,8 @@ public class MainActivity extends AppCompatActivity {
     // Same method is called when an options menu item is selected.
 
     public boolean onOptionsItemSelected(MenuItem item) {
+        Log.d(TAG, "onCreate: restoreState Item" + " /" + flag);
         if (mDrawerToggle.onOptionsItemSelected(item)) {
-            Log.d(TAG, "onOptionsItemSelected: mDrawerToggle " + item.toString());
             return true;
         }
         setTitle(item.getTitle().toString());
@@ -248,30 +241,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     ////////////////////////////////////////////////////////////////////
+    private int count = 0;
+
     public class NewsReceiver extends BroadcastReceiver {
         private static final String TAG = "NewsReceiver";
 
         @Override
         public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "Jorwar_onReceive: " + count++);
             if (intent == null || intent.getAction() == null)
                 return;
             switch (intent.getAction()) {
                 case NewsService.ACTION_NEWS_STORY:
+                    articleListFromNS.clear();
                     if (intent.hasExtra(NewsService.MSG_FROM_NS)) {
-                        articleListFromNS = (ArrayList<NewsArticleBean>) intent.getSerializableExtra(NewsService.MSG_FROM_NS);
+                        articleListFromNS.addAll((ArrayList<NewsArticleBean>) intent.getSerializableExtra(NewsService.MSG_FROM_NS));
                     }
+                    MainActivity.this.reDoFragments();
                     Log.d(TAG, "onReceive: " + articleListFromNS.size());
                     break;
                 default:
                     Log.d(TAG, "onReceive: Unexpected broadcast: " + intent.getAction());
             }
         }
-
     }
 
-    public void displayPager() {
+    public void reDoFragments() {
 
-        Log.d(TAG, "displayPager: ");
+        Log.d(TAG, "reDoFragments: ");
         for (int i = 0; i < articleListFromNS.size(); i++) {
             if (articleListFromNS.get(i).getSrcName() != null) {
                 setTitle(articleListFromNS.get(i).getSrcName());
@@ -296,7 +293,6 @@ public class MainActivity extends AppCompatActivity {
 
         // Set the first fragment to display
         pager.setCurrentItem(0);
-        //pager.setBackground(null);
     }
 
     private class MyPageAdapter extends FragmentPagerAdapter {
@@ -349,4 +345,62 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
     }
 
+    //Extra Functionality
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        Log.d(TAG, "onCreate: restoreState save");
+        Log.d(TAG, "onSaveInstanceState: " + articleListFromNS.size());
+        outState.putSerializable("DRAWERLIST", newsSrcList);
+        outState.putSerializable("NEWSDATA", newsData);
+        outState.putBoolean("FLAGV", true);
+        outState.putSerializable("ARTICLELIST", articleListFromNS);
+        outState.putString("TITLE", getTitle().toString());
+        super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        Log.d(TAG, "onCreate: restoreState restore");
+        super.onRestoreInstanceState(savedInstanceState);
+        //flag = savedInstanceState.getBoolean("FLAGV");
+        HashMap<String, ArrayList<NewsBean>> restoredHmap;
+        restoredHmap = (HashMap<String, ArrayList<NewsBean>>) savedInstanceState.getSerializable("NEWSDATA");
+        newsData.putAll(restoredHmap);
+        ArrayList<NewsBean> restoredNewsSrcList;
+        restoredNewsSrcList = (ArrayList<NewsBean>) savedInstanceState.getSerializable("DRAWERLIST");
+        newsSrcList.addAll(restoredNewsSrcList);
+        setOrientationChanges();
+        ArrayList<NewsArticleBean> restoredArticleList;
+        restoredArticleList = (ArrayList<NewsArticleBean>) savedInstanceState.getSerializable("ARTICLELIST");
+        articleListFromNS.addAll(restoredArticleList);
+        if (articleListFromNS.isEmpty())
+            setTitle(savedInstanceState.getString("TITLE"));
+        else
+            reDoFragments();
+    }
+
+    public void setOrientationChanges() {
+        Log.d(TAG, "setOrientationChanges: ");
+        ArrayList<String> tempList = new ArrayList<>(newsData.keySet());
+        Collections.sort(tempList);
+        tempCopyList.addAll(tempList);
+        //newsSrcList.addAll(listIn);
+        Log.d(TAG, "setSources: srcl " + newsSrcList.size());
+        mDrawerList.setAdapter(new ArrayAdapter<NewsBean>(this, R.layout.drawer_item, newsSrcList) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                NewsBean newsBean = newsSrcList.get(position);
+                TextView text = view.findViewById(R.id.text_view);
+                text.setText(newsBean.toString());
+                text.setTextColor(Color.parseColor(newsBean.getColor(tempCopyList.indexOf(newsBean.getCategory()))));
+                return view;
+            }
+        });
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeButtonEnabled(true);
+        }
+    }
 }

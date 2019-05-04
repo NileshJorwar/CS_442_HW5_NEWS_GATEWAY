@@ -5,7 +5,7 @@
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@mipmap/news_background"
+    android:background="@mipmap/new_bg"
     tools:context=".MainActivity">
 
     <android.support.v4.view.ViewPager
